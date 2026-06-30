@@ -1,0 +1,35 @@
+{
+  "name": "trench-desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trench Desk — a Solana/pump.fun meme-coin trading desk. Screens, alerts, vets, logs, and enforces discipline. It does NOT trade.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "tsx worker/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"lib/**/*.test.ts\"",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@solana/web3.js": "1.95.8",
+    "drizzle-orm": "0.36.4",
+    "next": "15.5.19",
+    "postgres": "3.4.5",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "ws": "8.18.0",
+    "zod": "3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "@types/ws": "8.5.13",
+    "drizzle-kit": "0.28.1",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3"
+  }
+}

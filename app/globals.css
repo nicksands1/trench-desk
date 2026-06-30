@@ -1,0 +1,200 @@
+/* Trench Desk — dark instrument-panel terminal. Green/red are SEMANTIC ONLY
+   (verdict, P&L sign, stop telltales), never decoration. */
+
+/* Fonts loaded at runtime (no build-time fetch); robust fallbacks for offline. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+:root {
+  --bg: #0f1419;
+  --panel: #161c24;
+  --line: #28323e;
+  --ink: #e8ecef;
+  --dim: #8a96a3;
+  --amber: #e8b339;
+  --green: #3fb950;
+  --red: #f25555;
+
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ui: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+  --r: 6px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--amber); }
+
+.mono { font-family: var(--mono); }
+.dim { color: var(--dim); }
+.amber { color: var(--amber); }
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+
+/* ── Layout shell ───────────────────────────────────────────────────────── */
+.shell { display: flex; min-height: 100vh; flex-direction: column; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #131922, var(--bg));
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+.brand {
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav a {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--dim);
+  padding: 5px 10px;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+}
+.nav a:hover { color: var(--ink); border-color: var(--line); }
+.nav a.active { color: var(--ink); border-color: var(--line); background: var(--panel); }
+
+main { padding: 18px; max-width: 1180px; width: 100%; margin: 0 auto; }
+
+/* ── Panels & grids ─────────────────────────────────────────────────────── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+.panel h2, .panel h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+.grid { display: grid; gap: 12px; }
+.grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 860px) {
+  .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+}
+
+/* ── Status strip / metrics ─────────────────────────────────────────────── */
+.metric { display: flex; flex-direction: column; gap: 3px; }
+.metric .label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--dim);
+}
+.metric .value { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.metric .sub { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+/* ── Verdict pills & telltales ──────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.pill.green { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, var(--line)); }
+.pill.yellow { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
+.pill.red { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+.pill.neutral { color: var(--dim); }
+
+.telltale { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: var(--r); border: 1px solid var(--line); color: var(--dim); }
+.telltale.on { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--line)); }
+.telltale.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.data th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+table.data td { padding: 8px 10px; border-bottom: 1px solid var(--line); font-family: var(--mono); }
+table.data tr:hover td { background: rgba(255, 255, 255, 0.015); }
+.right { text-align: right; }
+
+/* ── Forms / controls ───────────────────────────────────────────────────── */
+label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--dim); }
+input, select, textarea {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 8px 10px;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--amber); }
+textarea { resize: vertical; min-height: 60px; }
+
+button, .btn {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #1c2530;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+button:hover, .btn:hover { border-color: var(--amber); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary { background: color-mix(in srgb, var(--amber) 18%, #1c2530); border-color: color-mix(in srgb, var(--amber) 50%, var(--line)); }
+button.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--line)); }
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.spacer { flex: 1; }
+.muted-box { border: 1px dashed var(--line); border-radius: var(--r); padding: 18px; color: var(--dim); text-align: center; }
+.hr { height: 1px; background: var(--line); margin: 4px 0; border: none; }
+.kvs { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-family: var(--mono); font-size: 12px; }
+.kvs .k { color: var(--dim); }
+.banner { border-radius: var(--r); padding: 10px 14px; font-size: 13px; border: 1px solid var(--line); }
+.banner.red { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--line)); background: color-mix(in srgb, var(--red) 8%, var(--panel)); }
+.banner.green { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--line)); background: color-mix(in srgb, var(--green) 7%, var(--panel)); }
+.banner.amber { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 40%, var(--line)); background: color-mix(in srgb, var(--amber) 7%, var(--panel)); }
+small.note { color: var(--dim); font-size: 11px; }
