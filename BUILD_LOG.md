@@ -88,3 +88,20 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 **🔍 Validate**
 - `npm test` → 46/46 (adds 8: win rate / expectancy / avg win-loss, the 33.3% line comparison, followed-ladder rate incl. the null case, rule-break rate, by-emotion, low-sample flag, open-exclusion).
 - In the app: log a trade via the gate, close it at `+100` → journal shows a win, expectancy +100%, dashboard P&L rises; close another at `-50` with "stopped out" → cooldown telltale lights on the dashboard.
+
+---
+
+## Module 4 — Watchlist page ✅
+
+**✅ Shipped**
+- `app/watchlist/page.tsx` — table over `GET /api/watchlist?all=1`: verdict pill, early-buyer capture, top-10 ex-curve, liquidity, mcap, age, reasons; client-side verdict (ALL/GREEN/YELLOW) + status filters; quick links to `rugcheck.xyz/tokens/{ca}`, `dexscreener.com/solana/{ca}`, `axiom.trade`; a **Send-to-Gate** action (`/gate?ca=…`). Read-only with a clear empty state.
+
+**🧭 Decisions**
+- RED never appears because RED candidates are dropped at the pipeline (never persisted), so the watchlist is structurally incapable of showing a hard-fail — it shows GREEN (surfaced) and YELLOW (quiet) only.
+- No ranking/scoring column: the doctrine forbids ranking "what to buy." Sort is by recency (`lastSeen`), not desirability.
+
+**⚠️ NEEDS NICK**
+- Rows only populate once the worker runs with a Helius key + DB. Empty-state copy says exactly that.
+
+**🔍 Validate**
+- `npm run build` → `/watchlist` route present, green. With seeded candidates, filters narrow the table and every quick link resolves to the right external token page; Send-to-Gate lands on a prefilled gate.
