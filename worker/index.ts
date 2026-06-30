@@ -10,6 +10,7 @@
  */
 import { startScout } from "@/lib/worker/scout";
 import { startNewTokenScout, startDexPollInterval } from "@/lib/screener/loops";
+import { startHolderVelocity } from "@/lib/screener/velocity-job";
 import { heliusConfigured } from "@/lib/sources/helius";
 import { dbAvailable } from "@/lib/db/client";
 import { env, presetEnabled } from "@/lib/env";
@@ -36,11 +37,15 @@ async function main() {
   const dexPoll =
     presetEnabled("B") || presetEnabled("D") ? startDexPollInterval(60_000, (m) => log(m)) : null;
 
+  // Holder-velocity poller (feeds preset F) — only if F is enabled.
+  const velocity = presetEnabled("F") ? startHolderVelocity((m) => log(m)) : null;
+
   const shutdown = () => {
     log("shutting down…");
     scout.stop();
     newToken?.close();
     dexPoll?.stop();
+    velocity?.stop();
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
