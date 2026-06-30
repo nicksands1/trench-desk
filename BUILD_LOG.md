@@ -8,6 +8,36 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 
 ---
 
+## ☕ Start here in the morning
+
+**Overall status: all 9 modules built, committed, and pushed.** `tsc --noEmit` clean, `next build` green, **81/81 unit tests pass**, the worker boots all six background loops without crashing. Nothing is deployed and nothing trades — by design.
+
+**What's done vs. stubbed**
+- **Fully done (logic + UI + tests):** doctrine/sizing/breakeven, the safety engine (provenance, authorities, holders, funding-graph bundle detection, rugcheck/dexscreener cross-check), the Gate (6 criteria + tilt locks), the Journal + review, the Watchlist, the 6 screener presets, holder-velocity, smart-money clustering, and the scoreboard resolver/aggregation. All pure logic is unit-tested.
+- **Built but unexercised here (needs live creds + time to prove out):** every loop that hits Helius/DexScreener/PumpPortal. This sandbox's network blocked all outbound API calls (403), so the data layer ran only in degrade mode. The code is defensive (Zod-validated, degrades to incomplete/null), but the **live API shapes were never re-verified** and **no real signals were ingested**.
+- **Not done (intentionally):** deployment. Module 9 is docs + cron endpoints only.
+
+**Verify first (≈10 min, local):**
+1. `npm install` → `npm run build` (green) → `npm test` (81/81).
+2. `npm run dev`, open `/` — set bankroll via `PATCH /api/state {"bankroll":400}`, confirm Phase 0 / $200 max / $100 real risk. Walk a CA through `/gate`, log it, close it in `/journal`, watch the dashboard cooldown/daily-stop telltales react.
+3. `npm run worker` — confirm all six loops start and degrade cleanly.
+
+**The single most important next step:** set credentials and **begin the paper forward-test** — that's the thing that turns "built" into "validated":
+```bash
+# 1. fill .env from .env.example: DATABASE_URL + HELIUS_API_KEY (+ TELEGRAM_* optional)
+# 2. create the schema (additive only)
+DATABASE_URL=... npm run db:push
+# 3. run the worker (holds the sockets + pollers)
+npm run worker
+# 4. let signals accrue for DAYS, then read /scoreboard.
+#    Real capital only goes on a preset that reads "graduate"
+#    (≥20 resolved outcomes AND positive expectancy). See OPS.md §5.
+```
+
+**Before trusting live data**, skim the per-module ⚠️ NEEDS NICK notes below — chiefly: re-verify the Helius `getAsset` / `getTokenAccounts` / enhanced-transactions shapes and the PumpPortal event keys (they drift), and know that early-buyer-capture + funding-graph degrade to YELLOW/incomplete if Helius's enhanced/parsed-transfer endpoints have moved.
+
+---
+
 ## Environment note (applies to the whole build)
 - This build ran in a sandbox whose **network policy blocks outbound HTTPS to non-allowlisted hosts** (DexScreener, rugcheck, Helius, PumpPortal, Telegram all returned `403 CONNECT`). npm registry is allowlisted, so installs work.
 - Consequence: external API **shapes could not be live re-verified**, and pollers/sockets can't reach live data **from here**. Everything is therefore built defensively — every external response is Zod-validated and every read degrades to `null`/incomplete rather than throwing. Live verification must happen in the deploy environment (see ⚠️ NEEDS NICK).
@@ -195,3 +225,21 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 **🔍 Validate**
 - `npm test` → 81/81 (adds 15: resolver paths for 2x, stop, rug-by-liquidity, rug-by-missing-pair, rug-precedence, expiry, pending, no-entry-price; aggregation hit/rug/expectancy, payoff mapping, all three recommendations, grouping).
 - `npm run worker` → all six loops boot (migration, new-token, dex-poll, holder-velocity, smart-money, outcome-tracker), respect their preset gates, degrade without keys, no crash. With DB + Helius, `/scoreboard` fills in per-preset over time.
+
+---
+
+## Module 9 — Ops runbook (doc only) ✅
+
+**✅ Shipped**
+- `OPS.md` — full operator runbook: prerequisites, DB (Neon/Supabase/Railway) + `db:push`, deploy the Next app to Vercel (env table), run the background work two ways (**Option A** always-on `npm run worker` for the sockets + pollers; **Option B** Vercel Cron for the poll loops only), Telegram setup (send-only), operational notes (credits/tuning/webhooks/re-verify), and the **"going live" checklist that gates real capital on a preset reading `graduate` on the scoreboard** (≥20 resolved + positive expectancy).
+- To make Option B real (the loops were built as importable single-tick functions): `app/api/cron/[job]/route.ts` (dispatches `dexpoll`/`velocity`/`smartmoney`/`outcomes`, `CRON_SECRET`-gated) + `vercel.json` cron schedules. The live migration/new-token sockets are intentionally **not** in cron mode — they need the long-lived worker.
+
+**🧭 Decisions**
+- No deployment performed (spec: doc only). The cron endpoints + `vercel.json` are code, not a deploy — they make the documented per-tick option truthful.
+- Cron mode's limitation (misses real-time A/C launches) is documented explicitly so nobody assumes full coverage without the always-on worker.
+
+**⚠️ NEEDS NICK**
+- Deploying is yours to do: the app + worker were never deployed and nothing was pushed beyond the build branch.
+
+**🔍 Validate**
+- `npm run build` → `/api/cron/[job]` route present; `GET /api/cron/outcomes` (with `CRON_SECRET` header if set) runs one outcome-tracker tick and returns `{processed}`.

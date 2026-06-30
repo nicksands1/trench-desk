@@ -51,6 +51,9 @@ export const env = {
   // Paid / optional — never required.
   BIRDEYE_API_KEY: str("BIRDEYE_API_KEY"),
   RUGCHECK_JWT: str("RUGCHECK_JWT"),
+
+  // Optional: shared secret for the Vercel Cron per-tick endpoints.
+  CRON_SECRET: str("CRON_SECRET"),
 } as const;
 
 export function heliusRpcUrl(): string | undefined {
