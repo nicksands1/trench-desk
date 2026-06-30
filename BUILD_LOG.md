@@ -151,3 +151,25 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 **🔍 Validate**
 - `npm test` → 61/61 (adds 5: holdersAt lookup + fallback, net-new over windows on a steady climb, positive/negative acceleration, empty series).
 - With DB + Helius: run the worker, wait a few poll intervals, then `GET /api/velocity/<ca>` shows a rising series; a sharp accelerating climb writes an F-tagged `signals` row.
+
+---
+
+## Module 7 — Smart-money tracking ✅
+
+**✅ Shipped**
+- `lib/screener/smartmoney.ts` — pure `detectSmartMoneyClusters(events, minWallets, windowMs)`: sliding-window, per-token, distinct-wallet clustering. Returns the widest qualifying wallet set per token.
+- `lib/db/wallets.ts` — `tracked_wallets` CRUD (`listWallets`, `addWallet` upsert, `removeWallet`) with in-memory fallback.
+- `app/api/wallets/route.ts` — `GET / POST / DELETE /api/wallets`. `app/wallets/page.tsx` — add/track/remove UI.
+- `lib/screener/smartmoney-job.ts` — `tickSmartMoney` / `startSmartMoney`: polls each active wallet's recent `SWAP`s via Helius enhanced tx, extracts non-quote token buys, clusters, and fires preset E via the engine. Worker wires it, gated on `presetEnabled("E")`.
+
+**🧭 Decisions**
+- A "buy" = the wallet **receives** a non-quote mint in a SWAP (wSOL/USDC/USDT are excluded as quote legs). Polling, not webhooks.
+- The cluster detector returns the *widest* qualifying set so the alert reflects the true number of co-buying wallets, not just the threshold.
+
+**⚠️ NEEDS NICK**
+- **Polling, not webhooks** — fine for a handful of wallets, but Helius credit cost scales with wallet count × cadence. For many wallets, upgrade to Helius **webhooks** (push) — noted in OPS.md. Until then keep the tracked set small.
+- Depends on the (deprecated) Helius enhanced-transactions `type=SWAP` shape; same re-verify caveat as module 1. If swaps stop parsing, E simply never fires (no false positives).
+
+**🔍 Validate**
+- `npm test` → 67/67 (adds 6: 2-wallet cluster, out-of-window, same-wallet-twice, threshold-of-3, per-token independence, widest-set).
+- In the app: add 2 wallets on `/wallets`; with Helius + DB, when both buy the same token inside the window, an E-tagged signal + alert appears and the token shows on `/watchlist`.
