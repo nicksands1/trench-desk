@@ -68,3 +68,23 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 **🔍 Validate**
 - `npm test` → 38/38 (adds 12: gate clears clean GREEN, RED stands down, YELLOW reduces cap, cooldown/daily-stop/loss-streak/no-flip/oversize/max-open/missing-field blocks; close mutations for win/stop-out/daily-stop/streak).
 - In the app: open `/gate?ca=<ca>` → DD auto-runs; a RED shows the STAND DOWN banner and the submit stays disabled; a GREEN within cap clears and logs a trade. Close it from the journal (module 3) and watch the dashboard cooldown/daily-stop telltales react.
+
+---
+
+## Module 3 — Journal + review ✅
+
+**✅ Shipped**
+- `lib/journal.ts` — pure `computeReview(trades)`: win rate vs the 33.3% doctrine line (`edgeVsBreakeven`, `aboveBreakeven`), expectancy (mean result fraction), avg win / avg loss, total P&L, followed-ladder rate (only over trades where it was recorded), rule-break rate, win-rate-by-emotional-state, and a `lowSample` honesty flag under `MIN_SAMPLE` (20) closed trades.
+- `app/journal/page.tsx` — review panel + open positions (each with a close form: result %, emotional state, followed-ladder, stopped-out, rule breaks, note) + the closed log table. Closing a position PATCHes the trade and refetches, so the dashboard discipline telltales update too.
+
+**🧭 Decisions**
+- "Expectancy" is expressed as a per-trade fraction of position (so +1.0 = a 2x, −0.5 = a stop) — the same unit the gate/sizer use, not an R-multiple, to stay consistent with `resultPct` everywhere.
+- Win-rate-by-emotion telltales turn green/red against the breakeven line so tilt states (revenge/fomo) that drag below 33% are visible at a glance — the whole point of the panel.
+- Review math is the same pure function the tests assert, imported directly by the client — no drift between displayed numbers and tested numbers.
+
+**⚠️ NEEDS NICK**
+- None specific. Review numbers are only meaningful once you've logged real paper trades — which is the forward-test the system exists to support.
+
+**🔍 Validate**
+- `npm test` → 46/46 (adds 8: win rate / expectancy / avg win-loss, the 33.3% line comparison, followed-ladder rate incl. the null case, rule-break rate, by-emotion, low-sample flag, open-exclusion).
+- In the app: log a trade via the gate, close it at `+100` → journal shows a win, expectancy +100%, dashboard P&L rises; close another at `-50` with "stopped out" → cooldown telltale lights on the dashboard.
