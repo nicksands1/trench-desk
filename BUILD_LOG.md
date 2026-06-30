@@ -105,3 +105,27 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 
 **🔍 Validate**
 - `npm run build` → `/watchlist` route present, green. With seeded candidates, filters narrow the table and every quick link resolves to the right external token page; Send-to-Gate lands on a prefilled gate.
+
+---
+
+## Module 5 — Screener engine ✅
+
+**✅ Shipped**
+- `lib/screener/presets.ts` — the 6 presets A–F as **pure predicates** over a normalized `TokenSnapshot`, with a tunable `SCREENER` threshold table (starting points only). Each returns `{preset, matched, reasons[]}`; a snapshot already carrying a RED safety verdict can never match. `matchingPresets(snapshot, enabled)` filters to active + matched.
+- `lib/screener/snapshot.ts` — `buildSnapshot(ca, overrides, safety)` from DexScreener stats + caller overrides (justMigrated / smartMoneyBuyers / holder velocity) + safety.
+- `lib/screener/engine.ts` — `screenCandidate(ca, …)`: `runSafety` → RED dropped → build snapshot → evaluate active (or a single `only`) preset(s) → one deduped `signals` row **per matched preset** + surface/alert. Honors `SCREENER_PRESETS`.
+- `lib/worker/signals.ts` — shared `writeSignalRow` (dedup on ca+preset, entry snapshot for module 8). Replaces the old single-preset `pipeline.ts` (removed).
+- Acquisition loops `lib/screener/loops.ts` + `lib/screener/registry.ts`: `startNewTokenScout` (subscribeNewToken → 45s settle → preset A), `tickDexPoll` / `startDexPollInterval` (bounded re-poll of the recently-seen set → B/D), all behind the shared throttle. The migration scout now routes through the engine (preset C). Worker wires them, gated by `presetEnabled(...)`. E/F are fired by modules 7/6.
+
+**🧭 Decisions**
+- Predicates are **market-structure only**; the safety hard-fails (mint/freeze/LP/concentration/bundle) are enforced once, centrally, by the engine's RED-drop — not duplicated into each preset. Predicates additionally short-circuit on an attached RED so they're self-consistent in tests.
+- Every missing metric makes a condition **fail** (never "assume true"): a screener can't match on absent data.
+- B/D poll a **bounded recently-seen registry** (cap 300, oldest-evicted), not "all of Solana" — protects API credits. Single-tick `tickDexPoll` is exported so this runs under Vercel Cron without a 24/7 host.
+
+**⚠️ NEEDS NICK**
+- **No free "trending" endpoint is wired.** The spec allows "any verifiable free trending endpoint" for B/D; I could not verify one from this sandbox (network blocked), so B/D only see tokens that entered the registry via the migration/new-token streams or were otherwise remembered. If you want broader B/D coverage, add a verified trending source and call `remember(ca)` for each — the rest is automatic.
+- Re-verify `subscribeNewToken` event keys live (same caveat as module 1's PumpPortal note).
+
+**🔍 Validate**
+- `npm test` → 56/56 (adds 10 preset/fixture tests: A fresh-launch incl. RED-refusal + missing-data, B spike vs baseline, C migration, D momentum, E threshold, F velocity, matchingPresets enable/disable).
+- `SCREENER_PRESETS=A,B,C,D npm run worker` → boots the migration + new-token streams and the 60s dex re-poll, logs the active preset set, degrades without keys, no crash. Matches land in `signals` tagged by preset (needs DB + Helius to populate).
