@@ -54,6 +54,11 @@ export const env = {
 
   // Optional: shared secret for the Vercel Cron per-tick endpoints.
   CRON_SECRET: str("CRON_SECRET"),
+
+  // Optional: public URL of the deployed app (for "Run the Gate" links in alerts).
+  PUBLIC_APP_URL: str("PUBLIC_APP_URL"),
+  // Optional: override the Axiom deep-link base (default https://axiom.trade/meme).
+  AXIOM_BASE_URL: str("AXIOM_BASE_URL"),
 } as const;
 
 export function heliusRpcUrl(): string | undefined {

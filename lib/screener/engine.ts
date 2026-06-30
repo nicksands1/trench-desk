@@ -67,7 +67,9 @@ export async function screenCandidate(
     if (wrote) signalsWritten += 1;
   }
 
-  if (report.verdict === "GREEN" && matches.length > 0 && opts.alert !== false) {
+  // Alert ONLY on a brand-new match (a freshly-written signal), so the same
+  // token never re-alerts on subsequent poll cycles. GREEN + strict preset only.
+  if (report.verdict === "GREEN" && signalsWritten > 0 && opts.alert !== false) {
     await alertCandidate(report, {
       preset: matches.map((m) => m.preset).join(","),
       source: opts.source,
