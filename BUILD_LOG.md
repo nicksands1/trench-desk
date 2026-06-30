@@ -129,3 +129,25 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 **🔍 Validate**
 - `npm test` → 56/56 (adds 10 preset/fixture tests: A fresh-launch incl. RED-refusal + missing-data, B spike vs baseline, C migration, D momentum, E threshold, F velocity, matchingPresets enable/disable).
 - `SCREENER_PRESETS=A,B,C,D npm run worker` → boots the migration + new-token streams and the 60s dex re-poll, logs the active preset set, degrades without keys, no crash. Matches land in `signals` tagged by preset (needs DB + Helius to populate).
+
+---
+
+## Module 6 — Holder-velocity poller ✅
+
+**✅ Shipped**
+- `lib/screener/velocity.ts` — pure `computeVelocity(points, now)`: net-new holders over 5/15/30/60-min windows + `accel` (h0 − 2·h5 + h10), with a `holdersAt` lookup (at-or-before, earliest fallback).
+- `lib/db/holders.ts` — `holder_snapshots` I/O (`insertHolderSnapshot`, `getHolderPoints`) with in-memory fallback.
+- `lib/screener/velocity-job.ts` — `tickHolderVelocity(limit)` / `startHolderVelocity`: bounded over the **active watchlist only**, holder count via Helius `getTokenAccounts` → snapshot → velocity → fires preset F (via the engine with velocity overrides) on a real breakout. Throttled.
+- `GET /api/velocity/[ca]` — the series + computed velocity. Worker wires the poller, gated on `presetEnabled("F")`.
+
+**🧭 Decisions**
+- Holder count is derived from distinct owners in `getTokenAccounts` (bounded to 4 pages) — no separate paid holders endpoint required.
+- The poller only ever iterates the watchlist (cap `limit`), never an unbounded universe — directly honors the "bounded, throttled, don't burn credits" rule. Single-tick `tickHolderVelocity` is exported for the Vercel-Cron option.
+
+**⚠️ NEEDS NICK**
+- Holder-count accuracy depends on `getTokenAccounts` returning the full owner set within the page bound; for very large holder counts the 4-page cap under-counts (flagged as the read being bounded). Raise the cap only if credits allow.
+- Velocity only accrues once the poller has been running for a while (it needs ≥2 snapshots spaced in time). Nothing fires on the first tick — expected.
+
+**🔍 Validate**
+- `npm test` → 61/61 (adds 5: holdersAt lookup + fallback, net-new over windows on a steady climb, positive/negative acceleration, empty series).
+- With DB + Helius: run the worker, wait a few poll intervals, then `GET /api/velocity/<ca>` shows a rising series; a sharp accelerating climb writes an F-tagged `signals` row.
