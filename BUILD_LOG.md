@@ -173,3 +173,25 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 **🔍 Validate**
 - `npm test` → 67/67 (adds 6: 2-wallet cluster, out-of-window, same-wallet-twice, threshold-of-3, per-token independence, widest-set).
 - In the app: add 2 wallets on `/wallets`; with Helius + DB, when both buy the same token inside the window, an E-tagged signal + alert appears and the token shows on `/watchlist`.
+
+---
+
+## Module 8 — Scoreboard ✅
+
+**✅ Shipped**
+- `lib/scoreboard/resolver.ts` — pure `stepResolve` / `resolvePath`: tracks a signal's price vs entry and resolves **2x / stop / rug / expired**, recording the max multiple. Rug (pair gone or liquidity < floor) takes precedence over everything — you can't exit a rug at any printed price.
+- `lib/scoreboard/aggregate.ts` — pure per-preset `scorePreset` / `computeScoreboard`: hit rate, rug rate, expectancy (doctrine payoffs: 2x +1.0, stop −0.5, rug −1.0, expired 0), avg max-multiple, low-sample flag, and a **graduate / keep-paper / kill** recommendation.
+- `lib/db/signals.ts` + `lib/scoreboard/outcome-job.ts` — `tickOutcomes` / `startOutcomeTracker`: pending-only, bounded, throttled DexScreener resolution; persists the running max-multiple even before resolving.
+- `GET /api/scoreboard` + `app/scoreboard/page.tsx`. Worker wires the tracker (always on).
+
+**🧭 Decisions**
+- `expired` is scored as a flat 0 payoff (you'd have exited roughly flat) — a deliberate, documented approximation, since the paper model doesn't track the exact exit of a non-triggering trade.
+- Discrete polling means "2x before −50%" is decided by whichever threshold a *sample* first crosses; a failed DexScreener fetch (vs a confirmed missing pair) is **never** treated as a rug — it stays pending. This avoids false rug-resolutions on transient errors.
+- "graduate" requires ≥20 resolved **and** positive expectancy — matches the doctrine's "real capital only on positive expectancy over 20+ outcomes."
+
+**⚠️ NEEDS NICK**
+- The scoreboard is inherently DB-backed and time-dependent: it only becomes meaningful after the worker has run for hours/days and outcomes resolve. This **is** the forward-test — it's yours to run.
+
+**🔍 Validate**
+- `npm test` → 81/81 (adds 15: resolver paths for 2x, stop, rug-by-liquidity, rug-by-missing-pair, rug-precedence, expiry, pending, no-entry-price; aggregation hit/rug/expectancy, payoff mapping, all three recommendations, grouping).
+- `npm run worker` → all six loops boot (migration, new-token, dex-poll, holder-velocity, smart-money, outcome-tracker), respect their preset gates, degrade without keys, no crash. With DB + Helius, `/scoreboard` fills in per-preset over time.
