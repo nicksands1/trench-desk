@@ -12,6 +12,7 @@ import { startScout } from "@/lib/worker/scout";
 import { startNewTokenScout, startDexPollInterval } from "@/lib/screener/loops";
 import { startHolderVelocity } from "@/lib/screener/velocity-job";
 import { startSmartMoney } from "@/lib/screener/smartmoney-job";
+import { startOutcomeTracker } from "@/lib/scoreboard/outcome-job";
 import { heliusConfigured } from "@/lib/sources/helius";
 import { dbAvailable } from "@/lib/db/client";
 import { env, presetEnabled } from "@/lib/env";
@@ -44,6 +45,9 @@ async function main() {
   // Smart-money tracking (feeds preset E) — only if E is enabled.
   const smartMoney = presetEnabled("E") ? startSmartMoney((m) => log(m)) : null;
 
+  // Outcome tracker (the validation backbone) — always on.
+  const outcomes = startOutcomeTracker((m) => log(m));
+
   const shutdown = () => {
     log("shutting down…");
     scout.stop();
@@ -51,6 +55,7 @@ async function main() {
     dexPoll?.stop();
     velocity?.stop();
     smartMoney?.stop();
+    outcomes.stop();
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
