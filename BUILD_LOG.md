@@ -42,3 +42,29 @@ Autonomous build log. One entry per module: ✅ shipped, 🧭 decisions, ⚠️ 
 - `npx tsc --noEmit` → clean. `npm run build` → green. `npm test` → 26/26 pass (doctrine ladder/sizing/breakeven, safety verdict hard-fails + incomplete-degrade, holder math, funding clustering).
 - `npm run dev` → dashboard renders the status strip from in-memory state; `PATCH /api/state {"bankroll":400}` then reload shows Phase 0 / $200 max / $100 real risk.
 - `npm run worker` → boots, logs degraded-mode notices, opens the migration stream, reconnects on disconnect with backoff, no crash.
+
+---
+
+## Module 2 — Gate page + sizer ✅
+
+**✅ Shipped**
+- `lib/discipline.ts` — pure, fully-tested enforcement layer:
+  - `evaluateGate(state, input, now)` returns `{ cleared, standDown, findings[], sizing, suggestedMaxUsd, ladder, rugAdjustedBreakeven }`. Encodes the 6 entry criteria (DD pass, thesis, exit-ladder + invalidation, not-on-cooldown/daily-stop, size within cap) and the tilt locks (cooldown, no-flip, FOMO attestation, loss-streak, open-position cap). RED short-circuits to a hard, non-overridable **STAND DOWN**; YELLOW halves the suggested cap.
+  - `applyTradeClose(state, close, now)` — the doctrine state mutation: bankroll + today P&L, loss-streak increment/reset, 30-min cooldown on a stop-out, daily-stop recompute (down ≥ dailyStopPct **or** loss-streak limit), no-flip ticker push.
+- `lib/db/trades.ts` — trades I/O with the same in-memory fallback (so gate→journal works without a DB): `listTrades`, `getTrade`, `openTradeCount`, `insertTrade`, `closeTrade` (wires `applyTradeClose` into persisted state).
+- `app/gate/page.tsx` + `app/gate/GateClient.tsx` — `/gate?ca=…` prefilled; auto-runs DD via `/api/safety/[ca]`, live gate verdict, the sizer (phase, cap, real risk, rug-adj breakeven, ladder), and the decision panel. Submitting opens + logs a trade; it never executes one.
+- APIs: `GET/POST /api/trades` (POST re-evaluates the gate server-side — defense in depth — and rejects a non-cleared gate with 422), `PATCH /api/trades/[id]` (close + state mutation).
+
+**🧭 Decisions**
+- The gate is evaluated **both** client-side (live UX) and server-side (authoritative). The server never trusts the client's "cleared" — it recomputes from the cached/fresh safety verdict + current state.
+- "Exit ladder defined" is always true because the doctrine ladder (mode A/B) is always available from config — the criterion is satisfied by the system surfacing the ladder, with the human confirming it.
+- YELLOW is *allowed at reduced size* (×0.5 cap) rather than blocked — matches the doctrine ("elevated risk, reduced size only").
+- Opening a trade records the active warn-level findings into `ruleBreaks` for honest journaling.
+
+**⚠️ NEEDS NICK**
+- The gate's `openPositions` count and `lastExitedTickers` (no-flip) are only meaningful once a DB is connected or within a single running process (in-memory fallback). With no DB, "session" state resets on restart.
+- Entry price isn't fetched live at open (falls back to a placeholder); for P&L you record the **result %** at close, which is what the doctrine actually needs. Wire a live price at open later if you want absolute entry tracking.
+
+**🔍 Validate**
+- `npm test` → 38/38 (adds 12: gate clears clean GREEN, RED stands down, YELLOW reduces cap, cooldown/daily-stop/loss-streak/no-flip/oversize/max-open/missing-field blocks; close mutations for win/stop-out/daily-stop/streak).
+- In the app: open `/gate?ca=<ca>` → DD auto-runs; a RED shows the STAND DOWN banner and the submit stays disabled; a GREEN within cap clears and logs a trade. Close it from the journal (module 3) and watch the dashboard cooldown/daily-stop telltales react.
