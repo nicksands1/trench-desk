@@ -1,9 +1,3 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    { "path": "/api/cron/dexpoll", "schedule": "*/2 * * * *" },
-    { "path": "/api/cron/velocity", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/smartmoney", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/outcomes", "schedule": "*/10 * * * *" }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }

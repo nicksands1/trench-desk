@@ -98,20 +98,25 @@ npm run worker
 This is the only way to catch migrations/new-tokens **in real time** (the socket
 events aren't pollable).
 
-### Option B — Vercel Cron (no extra host; poll loops only)
+### Option B — Scheduled HTTP ticks (no extra host; poll loops only)
 
-The repo ships `vercel.json` with cron schedules hitting per-tick endpoints:
+Each poll loop is exposed as a per-tick endpoint, so any scheduler can drive it:
 
-| Endpoint | Default schedule | Loop |
+| Endpoint | Suggested cadence | Loop |
 |---|---|---|
 | `/api/cron/dexpoll` | every 2 min | DexScreener re-poll → presets B/D |
 | `/api/cron/velocity` | every 5 min | holder-velocity → preset F |
 | `/api/cron/smartmoney` | every 5 min | tracked-wallet buys → preset E |
 | `/api/cron/outcomes` | every 10 min | resolve pending signals (scoreboard) |
 
-1. Set `CRON_SECRET` in Vercel — the cron requests carry
-   `Authorization: Bearer <CRON_SECRET>` automatically; the routes reject anything else.
-2. Deploy. Vercel registers the crons from `vercel.json`.
+Set `CRON_SECRET` and call each endpoint with `Authorization: Bearer <CRON_SECRET>`.
+
+> **⚠️ Vercel Cron is NOT viable on the Hobby (free) plan** — Hobby cron jobs may
+> run **at most once per day**, far too slow for meme screening. So `vercel.json`
+> intentionally ships **without** crons (otherwise Hobby deploys fail). Options:
+> - **Pro plan:** add the schedules back to `vercel.json` (`crons: [...]`) and Vercel runs them at minute cadence.
+> - **Free external scheduler (recommended on Hobby):** point **cron-job.org** or a **GitHub Actions** scheduled workflow at the four endpoints above (with the `CRON_SECRET` header). Fully cloud, free, minute-cadence.
+> - **Always-on worker (Option A):** covers these loops *and* the live socket — simplest if you have a host.
 
 **Limitation:** Cron mode does **not** hold the migration/new-token sockets, so
 it misses real-time fresh launches (preset A) and migrations (preset C) — it only
