@@ -1,6 +1,7 @@
 import { openPumpStream, type StreamHandle } from "@/lib/sources/pumpportal";
 import { sharedThrottle } from "@/lib/worker/throttle";
-import { processCandidate } from "@/lib/worker/pipeline";
+import { screenCandidate } from "@/lib/screener/engine";
+import { remember } from "@/lib/screener/registry";
 
 /**
  * The migration scout (module 1). Holds the PumpPortal `subscribeMigration`
@@ -21,20 +22,21 @@ export function startScout(
   const throttle = sharedThrottle();
 
   const handleMigration = (ca: string, symbol?: string) => {
+    remember(ca); // let the B/D re-poller follow it post-migration
     void throttle.run(async () => {
       try {
-        const res = await processCandidate(ca, {
-          symbol,
+        // Migration == preset C source; the engine also evaluates any other
+        // enabled preset whose data is already present on the snapshot.
+        const res = await screenCandidate(ca, {
           source: "scout",
-          preset: "C", // migration scout == preset C source
-          writeSignal: true,
+          overrides: { symbol, justMigrated: true },
         });
         if (res.dropped) {
           log(`RED dropped ${symbol ?? ca}`);
-        } else if (res.surfaced) {
-          log(`GREEN surfaced ${symbol ?? ca}`);
+        } else if (res.matches.length) {
+          log(`${res.verdict} matched [${res.matches.map((m) => m.preset).join(",")}] ${symbol ?? ca}`);
         } else {
-          log(`YELLOW quiet ${symbol ?? ca}`);
+          log(`${res.verdict} no-preset ${symbol ?? ca}`);
         }
       } catch (err) {
         log(`error processing ${ca}: ${(err as Error).message}`);

@@ -9,8 +9,10 @@
  * §0: this worker screens, vets, alerts, and logs. It NEVER trades.
  */
 import { startScout } from "@/lib/worker/scout";
+import { startNewTokenScout, startDexPollInterval } from "@/lib/screener/loops";
 import { heliusConfigured } from "@/lib/sources/helius";
 import { dbAvailable } from "@/lib/db/client";
+import { env, presetEnabled } from "@/lib/env";
 
 function log(msg: string) {
   const ts = new Date().toISOString();
@@ -22,11 +24,23 @@ async function main() {
   if (!dbAvailable()) log("DATABASE_URL not set — DB writes are no-ops (degraded).");
   if (!heliusConfigured()) log("HELIUS_API_KEY not set — safety reads will be incomplete.");
 
+  log(`active presets: ${env.SCREENER_PRESETS.join(",") || "(none)"}`);
+
+  // Migration scout (preset C) — always on; it's the core surfacing loop.
   const scout = startScout((m) => log(m));
+
+  // New-token stream (preset A) — only if A is enabled.
+  const newToken = presetEnabled("A") ? startNewTokenScout((m) => log(m)) : null;
+
+  // DexScreener re-poll (presets B/D) — only if either is enabled.
+  const dexPoll =
+    presetEnabled("B") || presetEnabled("D") ? startDexPollInterval(60_000, (m) => log(m)) : null;
 
   const shutdown = () => {
     log("shutting down…");
     scout.stop();
+    newToken?.close();
+    dexPoll?.stop();
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
